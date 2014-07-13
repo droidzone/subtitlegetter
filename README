@@ -1,0 +1,6 @@
+# A perl script to easily get subtitles for all movies in a directory
+# Usage:
+# ./getsubs.pl
+#
+# Credits for initial script to  https://github.com/hitolaus/p5-OpenSubtitles
+# Reference to API: http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC
