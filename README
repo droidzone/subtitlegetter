@@ -4,3 +4,7 @@
 #
 # Credits for initial script to  https://github.com/hitolaus/p5-OpenSubtitles
 # Reference to API: http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC
+
+For adding a context menu handler,
+Install Activestate perl in the directory specified in the .reg file
+Import the registry key and copy the .cmd file to correct location
