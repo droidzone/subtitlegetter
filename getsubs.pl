@@ -265,7 +265,12 @@ sub DetailedSearch
 	print "*********************\n";
     print Dumper($result);
 	print "*********************\n";
-	&lp ("Number of subtitle files found:".keys $result->{data});
+	if(ref($result->{data}) ne 'ARRAY') {
+		print "Did not receive subtitles for this file: $filename !\nSubtitles are probably not available on OpenSubtitles. Aborting.\n";
+		# push (@filenosubs, $filename);
+		return;
+	}
+	&lp ("Number of subtitle files found:".scalar @{ $result->{data} });
 	my $count=0;
 	mkdir "./Subs";
 	foreach my $index ( keys $result->{data} )
