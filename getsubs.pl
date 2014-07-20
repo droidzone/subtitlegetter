@@ -2,6 +2,7 @@
 # Reference to API: http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC
 $VERSION = "1.00";
 my $DEBUGFLAG=1;
+my $RECURSE=1;
 use strict;
 use LWP::Simple;
 use XML::RPC;
@@ -14,6 +15,8 @@ use File::Copy;
 use Data::Dumper;
 use Scalar::Util qw(reftype);
 our @filenosubs=();
+use File::Find;
+use Cwd;
 
 # Globals
 our $CANNED_RESPONSE; # Mock data for unit testing
@@ -34,70 +37,6 @@ sub testapi {
 	my @args =qw//;
 	my $result = $xmlrpc->call('ServerInfo', $token, @args);    
     return $result->{xmlrpc_version};
-}
-
-sub search
-{
-    my $filename = shift or die("Need video filename");
-    my $filesize = -s $filename;
-    my $token = _login();    
-    my @args = [ { sublanguageid => "eng", moviehash => OpenSubtitlesHash($filename), moviebytesize => $filesize } ];    
-    my $xmlrpc = XML::RPC->new('http://api.opensubtitles.org/xml-rpc');
-    my $result = $xmlrpc->call('SearchSubtitles', $token, @args);    
-    return $result->{data};
-}
-
-
-sub download
-{
-    my $self = shift;
-    my $filename = shift or die("Need video filename");
-    
-    my @result = $self->search($filename);
-    
-    if (@result == 0) {
-        print "Cannot find subtitles for $filename\n";
-        return;
-    }
-    
-    my $subtitle = _best_subtitle(@result);
-    if (!$subtitle) {
-        print "Cannot find subtitle for $filename\n";
-        return;
-    }
-    
-    my ( $name, $path, $suffix ) = fileparse( $filename, qr/\.[^.]*/ );
-    
-    my $subtitle_filename = "$path$name.$subtitle->{ext}";
-    
-    my $input = get($subtitle->{link});
-    
-    gunzip \$input => $subtitle_filename
-        or die "gunzip failed: $GunzipError\n";
-}
-
-sub _best_subtitle
-{
-    my @subtitles = shift;
-    
-    for my $subtitle (@subtitles) {
-        if (_is_subtitle_supported($subtitle)) {
-            return { link => @$subtitle[0]->{SubDownloadLink}, ext =>  @$subtitle[0]->{SubFormat} };            
-        }
-    }
-    
-    return 0;
-}
-
-sub _is_subtitle_supported
-{
-    my $subtitle = shift;
-    
-    if (!$subtitle) {
-        return 0;
-    }
-    
-    return @$subtitle[0]->{SubFormat} == "srt";
 }
 
 sub _login
@@ -178,8 +117,6 @@ sub failedsubs {
 	}
 }
 
-
-
 sub msearch
 {
     my $filename = shift or die("Need video filename");
@@ -253,6 +190,7 @@ sub GetbyAlt {
 
 sub DetailedSearch
 {
+	# In case subtitle cant be located from filename, hash and size; search by name of the Show, Episode and Season number
 	my $showname = shift or die("Need name of TV Show");
 	my $season = shift or die("Need Season");
 	my $episode = shift or die("Need Episode");
@@ -295,49 +233,6 @@ sub DetailedSearch
 	}
 
 }
-sub qsearch
-{
-	my $showname = shift or die("Need name of TV Show");
-	my $season = shift or die("Need Season");
-	my $episode = shift or die("Need Episode");
-	#Search by Season and Episode
-	my $filename ='';
-	my $sublanguageid='eng';
-	my $token = _login();
-	
-	# query => 'movie name', "season" => 'season number', "episode" => 'episode number', 'tag' => tag ),array(...)), array('limit' => 500)
-	# my $showname = '24';
-	# my $season = '2';
-	# my $episode = '3';
-	
-	
-	my @args = [ { sublanguageid => $sublanguageid, query => $showname, season => $season, episode => $episode } ];
-    my $xmlrpc = XML::RPC->new('http://api.opensubtitles.org/xml-rpc');
-    my $result = $xmlrpc->call('SearchSubtitles', $token, @args) ;   
-	print "*********************\n";
-    print Dumper($result);
-	print "*********************\n";
-	&lp ("Number of subtitle files found:".keys $result->{data});
-	my $count=0;
-	mkdir "./Subs";
-	foreach my $index ( keys $result->{data} )
-	{
-		$count++;
-		lp ("SubDownloadLink:".$result->{data}[$index]->{SubDownloadLink});
-		my $filen = $result->{data}[$index]->{SubFileName};
-		my $url =$result->{data}[$index]->{SubDownloadLink};
-		my $ff = File::Fetch->new(uri => $url);
-		my $file = $ff->fetch() or die $ff->error;
-		gunzip $file => $filen
-			or die "gunzip failed: $GunzipError\n";
-		#Remove intermediate .gz file
-		unlink $file;
-		use File::Basename;
-		move ($filen, "./Subs/") or die "Copy failed: $!";
-		print "Downloaded: $filen to /Subs/\n";
-	}
-
-}
 
 sub findfiles {
 #Files all avi files in a directory
@@ -348,19 +243,43 @@ sub findfiles {
 	}
 }
 
-sub testmainsearch {
-	qsearch;	
+sub recursivefindfiles {
+	my $file = $_;
+    # print "Directory: $file\n" if -d $file;
+	# my $dir = getcwd;
+	my $curdir=$File::Find::dir;
+	my $curfile=$_;
+	if ($curfile =~ /.[avi|mp4|AVI|MP4]$/ ) {
+        # print "$curfile found in $dir \n";
+		print "\nSearching for subtitles for $curfile\n";
+		my $names = msearch ($curfile);
+    }
 }
 
-chdir "$ARGV[0]";
 
+my (@directories_to_search);
+# If directory is not supplied as an argument, set the current directory as working directory
+if ($#ARGV < 0 ) {
+	print "No dir. Setting current dir\n";
+	# my $dir = getcwd;
+	push (@directories_to_search, getcwd);
+} else {
+	# print "Supplied $#ARGV \n";
+	@directories_to_search = @ARGV;
+}
+
+#API version info is a test, to check if API works
 print "API version:".&testapi()."\n";
- findfiles;
- failedsubs;
-# testmainsearch;
-# my $names = msearch ("24 Season 8 Episode 01 - 4PM - 5PM.avi");
-# dl;
+find(\&recursivefindfiles, @directories_to_search);
+
+#** Old code **
+# chdir "$ARGV[0]";
+# findfiles;  Non recursive
+#** Old code **
+
+failedsubs;
+
 
 #Credits:
-#Modified from https://github.com/hitolaus/p5-OpenSubtitles
+#Initial idea from https://github.com/hitolaus/p5-OpenSubtitles
 
