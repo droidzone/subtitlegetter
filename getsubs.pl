@@ -242,7 +242,7 @@ sub DetailedSearch
 }
 
 sub findfiles {
-#Files all avi files in a directory
+#Finds all avi files in a directory
 	my @files = glob "*.avi *.mp4 *.mkv";
 	for (0..$#files){
 	  print "\nSearching for subtitles for $files[$_] \n";
