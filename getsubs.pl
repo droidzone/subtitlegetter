@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # Reference to API: http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC
 $VERSION = "1.00";
-my $DEBUGFLAG=0;
+our $DEBUGFLAG=0;
 my $RECURSE=1;
 use strict;
 use LWP::Simple;
@@ -17,6 +17,8 @@ use Scalar::Util qw(reftype);
 our @filenosubs=();
 use File::Find;
 use Cwd;
+#No of subtitles to be searched per file.
+our $SEARCHNUM=1;
 
 # Globals
 our $CANNED_RESPONSE; # Mock data for unit testing
@@ -152,7 +154,7 @@ sub msearch
 	&lp ("Number of subtitle files found:".scalar @{ $result->{data} });
 	my $count=0;
 	mkdir "./Subs";
-	foreach my $index ( keys $result->{data} )
+	DLEACH: foreach my $index ( keys $result->{data} )
 	{
 		$count++;
 		lp ("SubDownloadLink:".$result->{data}[$index]->{SubDownloadLink});
@@ -172,6 +174,8 @@ sub msearch
 			lp ("Downloaded: ".$newname);
 		}
 		move ($filen, "./Subs/") or die "Copy failed: $!";
+		last DLEACH if ($count == $SEARCHNUM) ;
+			
 	}
 
 }
