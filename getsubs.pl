@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # Reference to API: http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC
 $VERSION = "1.00";
-my $DEBUGFLAG=1;
+my $DEBUGFLAG=0;
 my $RECURSE=1;
 use strict;
 use LWP::Simple;
@@ -109,9 +109,9 @@ sub dl
 
 sub failedsubs {
 	if ( (scalar @filenosubs) > 0 ) {
-		print "Did not receive subtitles for one or more files\n";
+		print "\nDid not receive subtitles for ".scalar @filenosubs." file(s).\n\n";
 		foreach (@filenosubs) {
-			print "$_\n";
+			print "Manually getting subtitles for: $_\n";
 			GetbyAlt ($_);
 		}
 	}
@@ -180,11 +180,18 @@ sub GetbyAlt {
 	my $filename = shift or die $! ;	
 	print "Enter name of Show:";
 	my $showname = <>;
+	chomp($showname);	
+	if (!$showname) {
+		print "Skipping..\n\n";
+		return;
+	}
 	print "Enter Season:";
 	my $season = <>;
-	print "Enter Episode:";
+	chomp($season);
+	print "Enter Episode:";	
 	my $episode = <>;
-	chomp($showname, $season, $episode);	
+	chomp($showname);
+	# chomp($showname, $season, $episode);	
 	DetailedSearch ($showname, $season, $episode, $filename);
 }
 
@@ -249,7 +256,7 @@ sub recursivefindfiles {
 	# my $dir = getcwd;
 	my $curdir=$File::Find::dir;
 	my $curfile=$_;
-	if ($curfile =~ /.[avi|mp4|AVI|MP4]$/ ) {
+	if ($curfile =~ /.[avi|mp4|mkv|AVI|MP4|MKV]$/ ) {
         # print "$curfile found in $dir \n";
 		print "\nSearching for subtitles for $curfile\n";
 		my $names = msearch ($curfile);
@@ -260,7 +267,7 @@ sub recursivefindfiles {
 my (@directories_to_search);
 # If directory is not supplied as an argument, set the current directory as working directory
 if ($#ARGV < 0 ) {
-	print "No dir. Setting current dir\n";
+	print "No directory specified. Searching for media files within the current directory: ".getcwd."\n";
 	# my $dir = getcwd;
 	push (@directories_to_search, getcwd);
 } else {
