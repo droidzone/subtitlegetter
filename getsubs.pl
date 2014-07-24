@@ -24,7 +24,9 @@ our $SEARCHNUM=1;
 our $CANNED_RESPONSE; # Mock data for unit testing
 
 #my $USER_AGENT = "p5-OpenSubtitles v1";
-my $USER_AGENT = "OS Test User Agent";
+# my $USER_AGENT = "OS Test User Agent";
+ my $USER_AGENT = "SubQuesy";
+
 
 sub new
 {
